@@ -1,0 +1,297 @@
+---
+title: 'Assignment2_Group7'
+author: "Saujanya Acharya & Rona Hu"
+date: "2023-09-27"
+output: 
+ html_document: default
+ pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(gtrendsR)){
+  install.packages("gtrends")
+}
+
+library(gtrendsR)
+library(tidyverse)
+library(magrittr)
+library(tidyr)
+```
+
+## Assignment2_Group7
+
+#### The GitHub link:
+https://github.com/RonaGitHub/Acharya_Hu
+
+
+#### Pulling from APIs
+```{r}
+res <- gtrends(c("crime", "loans"), 
+               geo = "US-IL", 
+               time = "2020-01-01 2020-12-31", 
+               low_search_volume = TRUE)
+plot(res)
+```
+#### Find the mean, median and variance of the search hits for the keywords
+``` {r summary}
+res_over_time <- res$interest_over_time
+
+result <- res_over_time %>%
+  group_by(keyword) %>%
+  summarize(mean_hits = mean(hits),
+            median_hits = median(hits),
+            variance_hits = var(hits))
+print(result)
+```
+##### Answer:
+As we look into the Google trends data, particularly scoping into the usage trends from the Illinois state in the US, it can be observed that the mean for the "crime" keyword is 54.7 hits per day, and 66.1 hits per day for "loans" keyword. Moreover, a median of 53.5 hits and 65.0 hits per day can be observed for the keywords, "crime" and "loans", respectively. The variance shows that the hits for keyword "crime" is centered more closely around the mean with value of 82.3, and the hits for keyword "loans" with variance of 103.8 seems a bit spread out compared to the keyword "crime". There seems to be a higher variability in the keyword "loans" over the given time frame of a year.
+
+#### Which cities (locations) have the highest search frequency for "loans"?
+``` {r}
+res_by_city <- res$interest_by_city
+
+hits_by_city <- spread(res_by_city,
+                    key = keyword,
+                    value = hits)
+
+highest_hits <- hits_by_city %>% arrange(desc(loans))
+
+head(highest_hits, 5)
+
+
+```
+##### Answer:
+To be able to represent unique cities in individual rows, we spread the interest over time data with key of "keyword" and value of "hits" for each key words. We now have a separate variables for each of the search keywords, and it includes total hits for each keyword. From the transformed data-frame it can be observed that the cities Roseville (100), Malta (95), Rosemont (95), Alorton (89), and Coal City (85) have the highest search frequency for the keyword "loans".
+
+#### Is there a relationship between the search intensities between the two keywords we used?
+``` {r}
+cor(hits_by_city$crime, hits_by_city$loans, use='complete.obs')
+
+hits_over_time <- res_over_time %>% spread(key = keyword,
+                                           value = hits)
+
+cor(hits_over_time$crime, hits_over_time$loans, use='complete.obs')
+```
+##### Answer:
+The correlation between the two keywords "crime" and "loans" have been analysed from two perspectives here. When looking at the trend of the two keywords in interest of cities/locations, it can be observed that the correlation between the two terms is positive but somewhat negligible (0.05). When looking into the two keywords in interest of time, the correlation is negative and somewhat negligible (-0.02). 
+
+
+#### Repeat the above for keywords related to covid. Make sure you use multiple keywords like we did above. Try several different combinations and think carefully about words that might make sense within this context.
+
+```{r}
+covid_data <- gtrends(c("covid", "vaccine"),
+                 geo = "US-MI",
+                 time = "2020-01-01 2022-12-31",
+                 low_search_volume = TRUE)
+
+```
+
+##### Answer:
+We tried gathering data regarding the two keywords "covid" and "vaccine", 
+
+```{r}
+plot(covid_data)
+```
+The plot above indicates that there had been significant number of hits pertaining to the keywords "covid" and "vaccine" and that the interest in these keywords had peaked in a similar timeframe. We will conduct further analysis of these keywords below.
+
+#### Find the mean, median and variance of the search hits for the keywords "covid" and "vaccine"
+``` {r}
+covvac_over_time <- covid_data$interest_over_time
+covvac_over_time %<>% mutate(hits = str_replace(hits,"<1", "0"))
+covvac_over_time$hits <- strtoi(covvac_over_time$hits)
+
+covvac_stats <- covvac_over_time %>%
+  group_by(keyword) %>%
+  summarize(mean_hits = mean(hits),
+            median_hits = median(hits),
+            variance_hits = var(hits))
+
+print(covvac_stats)
+```
+##### Answer:
+In calculating the mean, median, and the variance of the hits for keywords "covid" and "vaccine", it can be observed that the the keyword "covid" has a higher hits means, which indicates that there's higher interest in the keyword "covid" than "vaccine." As we observe, the variance of hits for these keywords, "covid" seems to have higher variance, and hence more widely spread out than the hits for keyword "vaccine",  
+
+#### Which cities (locations) have the highest search frequency for covid?
+```{r}
+covvac_by_city <- covid_data$interest_by_city
+
+# Deal with the duplicated rows to run the spread function
+duplicated_rows <- covvac_by_city[duplicated(covvac_by_city[, c("keyword", "location")]), ]
+
+covvac_by_city <- covvac_by_city %>%
+  distinct(keyword, location, .keep_all = TRUE)
+
+cv_hits_by_city <- spread(covvac_by_city, key = keyword, value = hits)
+
+cv_highest_hits <- cv_hits_by_city %>% arrange(desc(covid))
+#
+# #hits_by_city <- hits_by_city[order(-highest_hits$loans), ]
+head(cv_highest_hits, 5)
+```
+##### Answer:
+The google trends data indicates that the hits for the keyword "covid" is highest in the following cities:
+1. Ann Arbor Charter Township (100)
+2. Meridian Charter Township (93)
+3. Grosse Pointe Farms (92)
+4. Oakland charter Township (92)
+5. Pittsfield Charter Township (92)
+
+#### Is there a relationship between the search intensities between the two keywords we used?
+
+```{r}
+cor(cv_hits_by_city$covid, cv_hits_by_city$vaccine, use='complete.obs')
+
+cv_over_time <- covvac_over_time %>% spread(key = keyword,
+                                           value = hits)
+
+cor(cv_over_time$covid, cv_over_time$vaccine)
+```
+
+##### Answer: 
+As we observe the correlation between the two search keywords, we can observe that there's a strong positive correlation (0.69) between they keywords "covid" and "vaccine" when looking into the data in perspective of cities. For each city, as search for the keyword "covid" increases, the search for the keyword "vaccine" also tends to increase. Similarly, looking into the popularity of the search keywords over time, there seems to be a moderate positive correlation (0.52) between the search keywords, and indicates that the popularity for one tends to slightly increase as the popularity of the other keyword increases.
+
+### Census API 
+
+#### First, check how many cities don't appear in both data sets, i.e. cannot be matched. Then, create a new data set by joining the Google Trends and the ACS data. Keep only cities that appear in both data sets.
+```{r}
+library(censusapi)
+
+# Read the API key from the text file
+cs_key <- readLines("/Users/ronamoon/Desktop/UMich/Fall_2023/SurvMeth727/Assignment2/API_Key.txt")
+
+acs_il <- getCensus(name = "acs/acs5",
+                    vintage = 2020, 
+                    vars = c("NAME", 
+                             "B01001_001E", 
+                             "B06002_001E", 
+                             "B19013_001E", 
+                             "B19301_001E"), 
+                    region = "place:*", 
+                    regionin = "state:17",
+                    key = cs_key)
+head(acs_il)
+
+# Check the column names of acs_il
+colnames(acs_il)
+
+acs_il[acs_il == -666666666] <- NA
+
+# Rename columns using base R names function
+names(acs_il)[names(acs_il) == "B01001_001E"] <- "pop"
+names(acs_il)[names(acs_il) == "B06002_001E"] <- "age"
+names(acs_il)[names(acs_il) == "B19013_001E"] <- "hh_income"
+names(acs_il)[names(acs_il) == "B19301_001E"] <- "income"
+
+# acs_il <-
+#   acs_il %>%
+#   rename(pop = B01001_001E, 
+#          age = B06002_001E, 
+#          hh_income = B19013_001E, 
+#          income = B19301_001E)
+
+acs_il$location <- gsub(" city, Illinois$| village, Illinois$| CDP, Illinois$| town, Illinois$", "", acs_il$NAME )
+
+```
+
+
+```{r}
+common_cities <- inner_join(highest_hits, acs_il, by = "location")
+head(common_cities, 5)
+```
+
+#### Compute the mean of the search popularity for both keywords for cities that have an above average median household income and for those that have a below average median household income. When building your pipe, start with creating the grouping variable and then proceed with the remaining tasks. What conclusions might you draw from this?
+```{r}
+median_hh_income <- median(common_cities$hh_income, na.rm = TRUE)
+common_cities$above_below_median_income <- common_cities %>% with(ifelse(common_cities$hh_income > median_hh_income, "HH_income_above_median", "HH_income_below_median"))
+
+search_popularity <- common_cities %>% filter(!is.na(above_below_median_income)) %>%
+  group_by(above_below_median_income) %>%
+  summarize(mean_popularity_loans = mean(loans, na.rm = TRUE),
+            mean_popularity_crime = mean(crime, na.rm = TRUE))
+
+print(search_popularity)
+```
+##### Answer: 
+As the mean search popularity of keywords ("loans" and "crime") are analyzed based on the google trends data as well as the ACS data for cities that are present in both data sets, it can be observed that the keyword "loans" is more popular, with mean search hits of 48.99, in cities with household incomes below median household income of the state. Moreover, cities with household income below the median household income also have a higher mean search popularity, 32.74 for the keyword "crime", compared to cities with above median household income, that have a mean search hits for the keyword "loans" and "crime" at 45.32 and 31.21, respectively.
+
+#### Is there a relationship between the median household income and the search popularity of the Google trends terms? Describe the relationship and use a scatterplot with qplot().
+```{r}
+hh_inc_crime <- cor(common_cities$hh_income, common_cities$crime, use = "complete.obs")
+hh_inc_loans <- cor(common_cities$hh_income, common_cities$loans, use = "complete.obs")
+print(paste("The correlation between household income and search popularity of keyword 'loans' is ", hh_inc_loans, "and that for keyword 'crime' is ", hh_inc_crime))
+
+qplot(hh_income, crime, data = common_cities)
+qplot(hh_income, loans, data = common_cities)
+```
+##### Answer:
+Calculating the correlation between household income and the search popularity of key words "loans" and then "crime" indicates that there's some negative correlation between household income, and popularity of these keywords. Moreover, it can be observed that there's a greater negative correlation between household income and the keyword "loans" (-0.183), which indicates that as the household income increases, the search popularity for keyword "loans" decreases. And the keyword "crime" has a similar trend (-0.218). 
+
+### Repeating Above Steps for COVID and ACS data
+
+#### Extracting Data from acs for state of Michigan (with Statecode 26)
+```{r}
+acs_mi <- getCensus(name = "acs/acs5",
+                    vintage = 2020, 
+                    vars = c("NAME", 
+                             "B01001_001E", 
+                             "B06002_001E", 
+                             "B19013_001E", 
+                             "B19301_001E"), 
+                    region = "place:*", 
+                    regionin = "state:26",
+                    key = cs_key)
+head(acs_mi)
+
+acs_mi[acs_mi == -666666666] <- NA
+
+# Rename columns using base R names function
+names(acs_mi)[names(acs_mi) == "B01001_001E"] <- "pop"
+names(acs_mi)[names(acs_mi) == "B06002_001E"] <- "age"
+names(acs_mi)[names(acs_mi) == "B19013_001E"] <- "hh_income"
+names(acs_mi)[names(acs_mi) == "B19301_001E"] <- "income"
+
+
+# acs_mi <-
+#   acs_mi %>%
+#   rename(pop = B01001_001E, 
+#          age = B06002_001E, 
+#          hh_income = B19013_001E, 
+#          income = B19301_001E)
+
+acs_mi$location <- gsub(" city, Michigan$| village, Michigan$| CDP, Michigan$| town, Michigan$", "", acs_mi$NAME )
+
+cv_common_cities <- inner_join(cv_highest_hits, acs_mi, by = "location")
+head(cv_common_cities, 5)
+```
+
+#### Computing the mean of the search popularity for both keywords for cities that have an above average median household income and for those that have an below average median household income
+
+```{r}
+cv_median_hh_income <- median(cv_common_cities$hh_income, na.rm = TRUE)
+cv_common_cities$above_below_median_income <- cv_common_cities %>% with(ifelse(cv_common_cities$hh_income > cv_median_hh_income, "HH_income_above_median", "HH_income_below_median"))
+
+cv_search_popularity <- cv_common_cities %>% filter(!is.na(above_below_median_income)) %>%
+  group_by(above_below_median_income) %>%
+  summarize(mean_popularity_covid = mean(covid, na.rm = TRUE),
+            mean_popularity_vaccine = mean(vaccine, na.rm = TRUE))
+
+print(cv_search_popularity)
+```
+##### Answer:
+Comparing the household income with the popularity of search keywords "covid" and "vaccine" for the cities in state of Michigan, it can be observed that the households with income above median hh income have a higher mean hits for both of the keywords "covid" and "vaccine". However, it can be observed that the households with income above median hh income, have a greater interest in the keyword "covid" with mean popularity for the keyword being 69.64 as compared to 62.24 for households with below median hh income. Similarly, the mean search popularity for keyword "vaccine" has a mean search popularity of 63.04 for households above median hh income, which is higher compared to 51.71 for households below median hh income. 
+
+#### Is there a relationship between the median household income and the search popularity of the Google trends terms? Describe the relationship and use a scatterplot with qplot().
+
+```{r}
+hh_inc_covid <- cor(cv_common_cities$hh_income, cv_common_cities$covid, use = "complete.obs")
+hh_inc_vaccine <- cor(cv_common_cities$hh_income, cv_common_cities$vaccine, use = "complete.obs")
+print(paste("The correlation between household income and search popularity of keyword 'covid' is ", hh_inc_covid, "and that for keyword 'vaccine' is ", hh_inc_vaccine))
+
+qplot(hh_income, covid, data = cv_common_cities)
+qplot(hh_income, vaccine, data = cv_common_cities)
+```
+
+##### Answer:
+Calculating the correlation between the search terms shows that there's a positive correlation between household income and search popularity for both of the keywords "covid" and "vaccine" and the correlation value is 0.47 for 'covid' and 0.60 for 'vaccine' keywords, respectively. It indicates as moderate positive relationship whereby as the household income increase, the interest/popularity of keywords "covid" and "vaccine" also tends to increase.
